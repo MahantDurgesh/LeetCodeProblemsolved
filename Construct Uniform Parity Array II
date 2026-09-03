@@ -1,0 +1,27 @@
+class Solution {
+    public boolean uniformArray(int[] nums1) {
+        int minOdd = Integer.MAX_VALUE;
+
+        // Find the smallest odd number.
+        for (int x : nums1) {
+            if ((x & 1) == 1) {
+                minOdd = Math.min(minOdd, x);
+            }
+        }
+
+        // No odd numbers => all are even.
+        if (minOdd == Integer.MAX_VALUE) {
+            return true;
+        }
+
+        // An even number smaller than the smallest odd
+        // makes the construction impossible.
+        for (int x : nums1) {
+            if ((x & 1) == 0 && x < minOdd) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
