@@ -1,0 +1,192 @@
+class Solution {
+    static class Interval {
+        int l, r, w, idx;
+
+        Interval(int l, int r, int w, int idx) {
+            this.l = l;
+            this.r = r;
+            this.w = w;
+            this.idx = idx;
+        }
+    }
+
+    static class State {
+        long score;
+        int[] ids;
+
+        State(long score, int[] ids) {
+            this.score = score;
+            this.ids = ids;
+        }
+    }
+
+    private static final long NEG = Long.MIN_VALUE / 4;
+
+    public int[] maximumWeight(List<List<Integer>> intervals) {
+        int n = intervals.size();
+
+        Interval[] a = new Interval[n];
+
+        for (int i = 0; i < n; i++) {
+            a[i] = new Interval(
+                intervals.get(i).get(0),
+                intervals.get(i).get(1),
+                intervals.get(i).get(2),
+                i
+            );
+        }
+
+        // Sort by right endpoint.
+        Arrays.sort(a, (x, y) -> {
+            if (x.r != y.r) {
+                return Integer.compare(x.r, y.r);
+            }
+            return Integer.compare(x.idx, y.idx);
+        });
+
+        /*
+         * prev[i] = number of intervals among [0 .. i-1]
+         * whose right endpoint is strictly less than a[i].l.
+         *
+         * Thus dp[k][prev[i]] can safely be combined with a[i].
+         */
+        int[] prev = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            prev[i] = findPrevious(a, i, a[i].l);
+        }
+
+        /*
+         * dp[k][i]:
+         * best solution using exactly k intervals
+         * among the first i intervals.
+         *
+         * i ranges from 0 to n.
+         */
+        State[][] dp = new State[5][n + 1];
+
+        // Selecting 0 intervals always gives score 0 and empty indices.
+        for (int i = 0; i <= n; i++) {
+            dp[0][i] = new State(0, new int[0]);
+        }
+
+        // Impossible states initially.
+        for (int k = 1; k <= 4; k++) {
+            for (int i = 0; i <= n; i++) {
+                dp[k][i] = new State(NEG, null);
+            }
+        }
+
+        for (int i = 1; i <= n; i++) {
+            Interval cur = a[i - 1];
+
+            for (int k = 1; k <= 4; k++) {
+                // Option 1: don't take current interval.
+                State skip = dp[k][i - 1];
+
+                // Option 2: take current interval.
+                State takeBase = dp[k - 1][prev[i - 1]];
+
+                State take;
+
+                if (takeBase.score == NEG) {
+                    take = new State(NEG, null);
+                } else {
+                    int[] ids = insertSorted(takeBase.ids, cur.idx);
+
+                    take = new State(
+                        takeBase.score + cur.w,
+                        ids
+                    );
+                }
+
+                dp[k][i] = better(skip, take);
+            }
+        }
+
+        // We can choose up to 4 intervals.
+        State answer = new State(0, new int[0]);
+
+        for (int k = 1; k <= 4; k++) {
+            answer = better(answer, dp[k][n]);
+        }
+
+        return answer.ids;
+    }
+
+    /*
+     * Find number of intervals before index 'i' whose
+     * right endpoint is < left.
+     *
+     * This is equivalent to finding the first right endpoint >= left.
+     */
+    private int findPrevious(Interval[] a, int i, int left) {
+        int lo = 0;
+        int hi = i;
+
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+
+            if (a[mid].r < left) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+
+        return lo;
+    }
+
+    /*
+     * Return the state with:
+     * 1. larger score, or
+     * 2. lexicographically smaller ids if scores are equal.
+     */
+    private State better(State x, State y) {
+        if (x.score != y.score) {
+            return x.score > y.score ? x : y;
+        }
+
+        if (x.score == NEG) {
+            return x;
+        }
+
+        return compareLexicographically(x.ids, y.ids) <= 0 ? x : y;
+    }
+
+    private int compareLexicographically(int[] a, int[] b) {
+        int len = Math.min(a.length, b.length);
+
+        for (int i = 0; i < len; i++) {
+            if (a[i] != b[i]) {
+                return Integer.compare(a[i], b[i]);
+            }
+        }
+
+        return Integer.compare(a.length, b.length);
+    }
+
+    /*
+     * The answer's indices must be sorted increasingly.
+     * k <= 4, so simple insertion is enough.
+     */
+    private int[] insertSorted(int[] ids, int x) {
+        int[] result = new int[ids.length + 1];
+
+        int pos = 0;
+
+        while (pos < ids.length && ids[pos] < x) {
+            result[pos] = ids[pos];
+            pos++;
+        }
+
+        result[pos] = x;
+
+        while (pos < ids.length) {
+            result[pos + 1] = ids[pos];
+            pos++;
+        }
+
+        return result;
+    }
+}
